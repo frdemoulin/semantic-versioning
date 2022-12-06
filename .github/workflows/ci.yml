@@ -1,0 +1,79 @@
+name: CI
+on:
+  [push, pull_request]
+env:
+  GH_TOKEN: ${{ secrets.GH_TOKEN }}
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      # Mandatory : fetch the current repository —————————————————————————————————————————————
+      -   name: Checkout repository
+          uses: actions/checkout@v2
+
+      # To be faster, use cache system for the NPM 🐱 ————————————————————————————————————————————
+      -   name: Cache NPM (node_modules)
+          uses: actions/cache@v2
+          env:
+            cache-name: cache-node-modules
+          with:
+            path: ~/.npm
+            key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/package-lock.json') }}
+            restore-keys: |
+              ${{ runner.os }}-build-${{ env.cache-name }}-
+              ${{ runner.os }}-build-
+              ${{ runner.os }}-
+      
+      # Define the right Node.js's environment —————————————————————————————————————————————
+      -   name: Environment for NPM
+          uses: actions/setup-node@v2
+          with:
+            node-version: '18.12.1'
+
+      # # NPM run build —————————————————————————————————————————————
+      # -   name: NPM build
+      #     run: |
+      #       node -v
+      #       npm ci --cache .npm --unsafe-perm --prefer-offline
+      #       npm run build
+      
+      # # Upload artifacts (= builded files) to download them in the next job —————————————————————————————————————————————
+      # -   name: NPM artifacts
+      #     uses: actions/upload-artifact@v2
+      #     with:
+      #       name: npm-build
+      #       retention-days: 1
+      #       path: public/build/
+
+  deploy:
+    name: Symfony 5.4.0 (PHP ${{ matrix.php-version }})
+    
+    # Need the "build" job to be complete before started it
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        php-version: ['7.4']
+    steps:
+      # —— Setup Github actions 🐙 —————————————————————————————————————————————
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v2
+      
+      # https://github.com/shivammathur/setup-php (community)
+      - name: "Setup PHP, extensions and composer with shivammathur/setup-php"
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php-version }}
+          ini-values: memory_limit=512M
+          extensions: mbstring, xml, ctype, iconv, intl, pdo, pdo_mysql, dom, filter, gd, iconv, json, mbstring, pdo
+          tools: composer:v2.4
+          
+      - name: Check PHP Version
+        run: php -v
+      
+      ## —— Semantic Release 📦🚀 ———————————————————————————————————————————————————————————
+      - name: Setup Semantic Release
+        run: npm install -g semantic-release @semantic-release/git @semantic-release/changelog -D
+      - name: release
+        run: npx semantic-release
