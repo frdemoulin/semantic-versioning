@@ -7,4 +7,3 @@ Demo of semantic versioning and commit lint.
 - **CommitLint**: commit linting tool that will force us to write beautiful commits
 - **Husky**: use the commit-msg hook, which will run every time we try to add a commit message
 - **Semantic Release**: fully automated version management and package publishing (executed in CI env)
-
